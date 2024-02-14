@@ -1,4 +1,4 @@
-package chat8;
+package multichat;
 
 import java.io.PrintWriter;
 import java.sql.SQLException;
@@ -20,7 +20,7 @@ public class SQLinsert extends MyConnection{
 	
 	@Override
 	public void dbExecute() {
-		MultiServer multiServer = new MultiServer();
+//		MultiServer multiServer = new MultiServer();
 		String name = "";
 		String s = "";
 		PrintWriter out = null;
@@ -28,8 +28,8 @@ public class SQLinsert extends MyConnection{
 			query = " INSERT INTO chat_talking "
 					+ " VALUES (?, ?, ?, sysdate) ";
 			psmt = con.prepareStatement(query);
-			psmt.setString(1, multiServer.clientMap.toString());
-			psmt.setString(2, multiServer.toString());
+//			psmt.setString(1, multiServer.clientMap.toString());
+//			psmt.setString(2, multiServer.toString());
 //			psmt.setString(2, String.join(",", multiServer.clientMap.keySet()));
 			//쿼리문 실행 및 결과 반환
 			int result = psmt.executeUpdate();

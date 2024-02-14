@@ -1,4 +1,4 @@
-package chat8;
+package multichat;
 
 import java.sql.CallableStatement;
 import java.sql.Connection;

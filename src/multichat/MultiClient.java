@@ -1,4 +1,4 @@
-package chat8;
+package multichat;
 
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
@@ -12,7 +12,6 @@ public class MultiClient {
 		System.out.print("닉네임을 입력하세요:");
 		Scanner scanner = new Scanner(System.in);
 		String s_name = scanner.nextLine();
-		System.out.println("닉네임 " + s_name);
 		try {
 			//서버에 접속 요청
 			String ServerIP = "localhost";
@@ -21,7 +20,7 @@ public class MultiClient {
 			}
 			//서버에 접속 
 			Socket socket = new Socket(ServerIP, 9999);
-			System.out.println("서버와 연결되었습니다...");
+//			System.out.println("서버와 연결되었습니다...");
 			
 			/*
 			서버가 Echo해준 메세지를 지속적으로 받기위한 리시버 쓰레드

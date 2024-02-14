@@ -1,4 +1,4 @@
-package chat8;
+package multichat;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

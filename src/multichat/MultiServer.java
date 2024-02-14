@@ -1,4 +1,4 @@
-package chat8;
+package multichat;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -7,14 +7,16 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.Set;
 
-public class MultiServer {
+public class MultiServer extends MyConnection{
 	
 	//멤버변수
 	static ServerSocket serverSocket = null;
@@ -22,17 +24,27 @@ public class MultiServer {
 	
 	//클라이언트 정보를 저장하기 위한 Map 컬렉션 생성
 	Map<String, PrintWriter> clientMap;
-	HashSet<String> pWords;
+	Set<String> pWords;
+	Set<String> blackList;
 	//생성자
-	public MultiServer() {
+	public MultiServer(String user, String pass) {
+		super(user, pass);
 		/* 클라이언트의 이름과 접속시 생성한 출력스트림을 저장할
 		HashMap 인스턴스 생성 */
 		clientMap = new HashMap<String, PrintWriter>();
+		pWords = new HashSet<String>();
+		pWords.add("소켓");
+		pWords.add("쓰레드");
+		blackList = new HashSet<String>();
+		blackList.add("더조은");
+		blackList.add("니콜라");
 		/* HashMap 동기화 설정. 쓰레드가 사용자 정보에 동시접근하는
 		것을 차단한다. */
 		Collections.synchronizedMap(clientMap);
-		System.out.println("check");
 	}
+	String query;//쿼리문 저장
+	int result;//insert후 결과를 저장
+
 	
 	//채팅 서버 초기화
 	public void init() {
@@ -48,7 +60,7 @@ public class MultiServer {
 			while (true) {
 				socket = serverSocket.accept();
 				System.out.println("주소값" + socket.getInetAddress() +":"+
-						"포트" + socket.getPort());
+						" 포트" + socket.getPort());
 				/* 클라이언트 1명당 하나의 쓰레드가 생성되어 메세지
 				전송 및 수신을 담당한다. */
 				Thread mst = new MultiServerT(socket);
@@ -66,8 +78,9 @@ public class MultiServer {
 	}
 	/* 인스턴스 생성 후 초기화 메서드를 호출한다. */
 	public static void main(String[] args) {
-		MultiServer ms = new MultiServer();
+		MultiServer ms = new MultiServer("study", "1234");
 		ms.init();
+		
 	}
 	
 	/* 접속된 모든 클라이언트 측으로 서버의 메세지를 Echo 해주는
@@ -125,7 +138,33 @@ public class MultiServer {
 			}
 		}
 	}
-	
+	public void sendFixMsg(int fix, String name, String msg,
+			String receiveName) {
+		
+		Iterator<String> it = clientMap.keySet().iterator();
+		
+		while(it.hasNext()) {
+			try {
+				/* hashMap에는 Key로 대화명, Value로 PrintWriter
+				인스턴스가 저장되어 있다. */
+				String clientName = it.next();
+				PrintWriter it_out = 
+						(PrintWriter) clientMap.get(clientName);
+				
+				/* 해당 루프에서의 클라이언트 이름과 귓속말을 받을 사람의
+				대화명이 일치하는지 확인한다. */
+				if(clientName.equals(receiveName)) {
+					//일치하면 한 사람에게만 귓속말을 보낸다.
+					while(fix==1) {
+						it_out.println("[귓속말]"+ name +":"+ msg);
+						continue;
+					}
+				}
+			} catch (Exception e) {
+				System.out.println("예외:"+e);
+			}
+		}
+	}
 	class MultiServerT extends Thread {
 		Socket socket;
 		PrintWriter out = null;
@@ -147,36 +186,96 @@ public class MultiServer {
 			
 			String name = "";
 			String s = "";
+			Scanner scan = new Scanner(System.in);
+
+			final int MAXUSER = 3;
 			try {
-				
 				//첫번째 메세지는 대화명이므로 접속을 알린다. 
 				name = in.readLine();
 				name = URLDecoder.decode(name, "UTF-8");
-				
-				Iterator<String> it = clientMap.keySet().iterator();
-				while(it.hasNext()) {
-					String clientName = it.next();
-					if(name.equals(clientName)) {
-						Sender sender = new Sender(socket, clientName);
-						System.out.println("아웃" + out);
-						sender.out.println("같은 닉네임이 확인되었습니다.");
-						sender.out.println("다른 닉네임을 사용해 주세요.");
-						clientMap.remove(clientName, out);
-						System.out.println(sender.socket.getPort());
-						
-						break;
+				System.out.println(name + " 접속");
+				while(true) {
+					if(blackList.contains(name)) {
+						out.println("블랙리스트는 입장하실수 없습니다..");
+						socket.close();
+						out.close();
+						continue;
+					} else if(clientMap.containsKey(name)) {
+						out.println("다른 닉네임을 입력하여 주십시오.");
+						name = in.readLine();
+						name = URLDecoder.decode(name, "UTF-8");
+						continue;
+					} else if(clientMap.size()>=MAXUSER) {
+						out.println("접속할수 있는 최대 인원을 초과하였습니다.");
+						socket.close();
+						out.close();
 					} else {
-//						System.out.println("중복 아님");
-//						
+						clientMap.put(name, out);
+						out.println("서버와 연결되었습니다.");
+						sendAllMsg("", name + "님이 입장하셨습니다.");
 					}
-				}
+					
+					System.out.println("현재 접속자 수는 "
+					+clientMap.size()+"명 입니다.");
+					System.out.println("접속자 명단" + clientMap.keySet());
+					break;
+				} 
+
+
+//				while(it.hasNext()) {
+//					if(name.equals(clientName)) {
+//						System.out.println("----------중복 문단-----------");
+//						Sender sender = new Sender(socket, clientName);
+//						System.out.println("아웃" + out);
+//						sender.out.println("같은 닉네임이 확인되었습니다.");
+////						clientMap.remove(clientName, out);
+//						System.out.println("겟포트 :" + sender.socket.getPort());
+//						System.out.println(clientMap);
+//						System.out.println(name);
+//						System.out.println("키셋" + clientMap.keySet());
+//						System.out.println("----------중복 문단-----------");
+//						sender.out.println("다른 닉네임을 입력하여 주십시오.");
+////						sender.getName();
+////						clientMap.put(name, out);
+////						while(!(name.equals(clientName))) {
+////							sender.out.println("다른 닉네임을 사용해 주세요.");
+////									name = scan.nextLine();
+////									return;
+////						}
+////						sender.socket.close();
+////						clientMap.remove(name, out);
+//							
+////						break;
+//					} else {
+//						System.out.println("중복 아님");
+////						clientMap.put(name, out);
+//						System.out.println("키셋" + clientMap.keySet());
+//						System.out.println("클라맵" + clientMap);
+//						
+//					}
+//				}
+
 				//두번째 메세지부터는 "대화내용"
-				while(in != null) {
+				while(true) {
 					s = in.readLine();
 					s = URLDecoder.decode(s, "UTF-8");
-					if(s == null) break;
-					//서버의 콘솔에는 메세지를 그대로 출력한다. 
 					System.out.println(name +" >> "+ s);
+					while(pWords.contains(s)) {
+						out.println("금칙어입니다.");
+						s = in.readLine();
+						s = URLDecoder.decode(s, "UTF-8");
+						System.out.println(name +" >> "+ s);
+						continue;
+					} 
+					//서버의 콘솔에는 메세지를 그대로 출력한다. 
+					query = " INSERT INTO chat_talking "
+							+ " VALUES (serial_num.NEXTVAL, ?, ?, sysdate) ";
+					psmt = con.prepareStatement(query);
+					
+					psmt.setString(1, name);
+					psmt.setString(2, s);
+					int result = psmt.executeUpdate();
+					System.out.println(result + "행 입력됨");
 					/*
 					귓속말형식 => /to 수신자명 대화내용
 					 */
@@ -203,6 +302,14 @@ public class MultiServer {
 							매개변수는 발신대화명, 메세지, 수신대화명 형태로
 							작성한다. */
 							sendAllMsg(name, msgContent, strArr[1]);
+							System.out.println("name" + name);
+							System.out.println("msgContent" + msgContent);
+							System.out.println("strArr" + strArr[1]);
+						} else if (strArr[0].equals("/fixto")) {
+							int fixto = 1;
+							int unfixto = 2;
+							sendFixMsg(unfixto, name, msgContent, strArr[1]);
+							
 						}
 					} else {
 						sendAllMsg(name, s);
@@ -210,6 +317,7 @@ public class MultiServer {
 					}
 					
 				}
+
 			}catch (Exception e) {
 				System.out.println("예외:"+ e);
 			}finally {
@@ -220,7 +328,6 @@ public class MultiServer {
 				System.out.println(clientMap);
 				System.out.println("현재 접속자 수는 " + 
 				clientMap.size()+"명 입니다.");
-				System.out.println(clientMap);
 				try {
 					in.close();
 					out.close();

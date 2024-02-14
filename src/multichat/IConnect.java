@@ -1,4 +1,4 @@
-package chat8;
+package multichat;
 
 public interface IConnect {
 	/*

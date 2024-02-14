@@ -11,7 +11,7 @@ public class Sender extends Thread{
 	Socket socket;
 	PrintWriter out = null;
 	String name;
-	
+	Scanner scan = new Scanner(System.in);
 	/* 생성자 : 클라이언트가 서버에 접속시 생성했던 Socket 인스턴스를
 	기반으로 출력스트림을 생성한다. */
 	public Sender(Socket socket, String name) {
